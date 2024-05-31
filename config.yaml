@@ -1,0 +1,26 @@
+mode: command
+
+from:
+  addr: 127.0.0.1:8848
+  namespace: public
+  username: nacos
+  password: nacos
+to:
+  addr: 127.0.0.1:8848
+  namespace: public
+  username: nacos
+  password: nacos
+
+ignore:
+  - data_id: admin-service.yaml
+    fields:
+      server:
+        port: 8080
+  - data_id: user-service.yaml
+    fields:
+      application:
+        name: "haha"
+        lala: "lala"
+      spring:
+        liquibase:
+          enabled: false
