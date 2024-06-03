@@ -1,0 +1,21 @@
+mode: command
+
+from:
+  addr: 127.0.0.1:8848
+  namespace: z-dev-zzc
+  username: nacos
+  password: nacos
+to:
+  addr: 127.0.0.1:8848
+  namespace: public
+  username: nacos
+  password: nacos
+
+ignore:
+  - data_id: admin-service.yaml
+    fields:
+      name:
+        last:
+      age:
+        max:
+

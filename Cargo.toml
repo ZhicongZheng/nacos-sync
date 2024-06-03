@@ -7,3 +7,7 @@ edition = "2021"
 clap = { version = "4.5.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
+nacos-sdk = { version = "0.4", features = ["default"] }
+tokio = { version = "1.38.0", features = ["full"] }
+reqwest = { version = "0.12", features = ["json"] }
+serde_json = { version = "1.0" }

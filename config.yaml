@@ -1,26 +1,22 @@
-mode: command
+server:
+  port: 8000
+  servlet:
+    context-path: /admin
 
-from:
-  addr: 127.0.0.1:8848
-  namespace: public
-  username: nacos
-  password: nacos
-to:
-  addr: 127.0.0.1:8848
-  namespace: public
-  username: nacos
-  password: nacos
+spring:
+  security:
+    user:
+      name: apn
+      password: apn
 
-ignore:
-  - data_id: admin-service.yaml
-    fields:
-      server:
-        port: 8080
-  - data_id: user-service.yaml
-    fields:
-      application:
-        name: "haha"
-        lala: "lala"
-      spring:
-        liquibase:
-          enabled: false
+  boot:
+    admin:
+      ui:
+        title: APN Admin Monitor
+
+application:
+  notification:
+    lark:
+      enabled: true
+      webhookKey: gRN7zwUVVeddC6bUVL4cYd
+      webhookUrl: https://open.larksuite.com/open-apis/bot/v2/hook/3789e9f0-2a59-4e92-9a0a-a2b7849cb177
