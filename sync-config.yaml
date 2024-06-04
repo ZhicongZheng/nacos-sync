@@ -7,15 +7,14 @@ from:
   password: nacos
 to:
   addr: 127.0.0.1:8848
-  namespace: public
+  namespace: test-sync
   username: nacos
   password: nacos
 
 ignore:
-  - data_id: admin-service.yaml
+  - data_id: public-datasource.yaml
     fields:
-      name:
-        last:
-      age:
-        max:
+      spring:
+        liquibase:
+          enabled:
 

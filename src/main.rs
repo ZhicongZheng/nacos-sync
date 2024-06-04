@@ -7,16 +7,16 @@ use serde_yaml::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let sync_config = read_config("sync-config.yaml").unwrap();
+    let sync_config = read_config("sync-config.yaml")?;
 
     let from = &sync_config.from;
-    let from_config_service = build_config_service(from).unwrap();
+    let from_config_service = build_config_service(from)?;
 
     let to = &sync_config.to;
-    let to_config_service = build_config_service(to).unwrap();
+    let to_config_service = build_config_service(to)?;
 
     let all_data_id = get_all_data_id(from).await?;
-    println!("All Data ID: {:#?}", all_data_id);
+    println!("All Data ID For Yaml Config: {:#?}", all_data_id);
 
     do_sync(all_data_id, &sync_config, Box::new(from_config_service), Box::new(to_config_service)).await?;
 
@@ -36,22 +36,22 @@ fn build_config_service(nacos: &Nacos) -> Result<impl ConfigService, Box<dyn std
 
 async fn do_sync(all_data_id: Vec<String>, sync_config: &Config, from_config_service: Box<dyn ConfigService>, to_config_service: Box<dyn ConfigService>) -> Result<(), Box<dyn std::error::Error>> {
     let ignore_vec = sync_config.ignore.clone();
-    let map = ignore_vec.first().unwrap();
-    let ignore: HashMap<String, Value> = map.fields.clone();
-    println!("Ignore: {:#?}", &ignore);
     for data_id in all_data_id {
         let config_resp = from_config_service.get_config(data_id.clone(), "DEFAULT_GROUP".to_string()).await?;
         let contents = config_resp.content();
         let yaml_config: HashMap<String, Value> = serde_yaml::from_str(contents)?;
 
         let mut result = yaml_config;
-        if ignore.contains_key(&data_id) {
+        if ignore_vec.iter().any(|ignore| ignore.data_id == data_id) {
+            let map = ignore_vec.first().unwrap();
+            let ignore: HashMap<String, Value> = map.fields.clone();
+            println!("Ignore: {:#?} for Data ID: {:#?}", &ignore, &data_id);
             result = filter_config(&result, &ignore);
         }
         //println!("dataId: {}, Result: {:#?}", &data_id, &result);
         let sync_response = to_config_service.publish_config(data_id.clone(), "DEFAULT_GROUP".to_string(), serde_yaml::to_string(&result).unwrap(), Some("yaml".to_string())).await;
         match sync_response {
-            Ok(_) => { println!("Sync Success: {}", &data_id) }
+            Ok(res) => { println!("Sync Success: {}, res: {:#?}", &data_id, res) }
             Err(err) => { println!("Sync Failed: {}, Error: {:#?}", &data_id, &err) }
         }
     }
@@ -65,10 +65,13 @@ async fn get_all_data_id(from_nacos: &Nacos) -> Result<Vec<String>, Box<dyn std:
         .form(&[("username", from_nacos.username.clone().unwrap()), ("password", from_nacos.password.clone().unwrap())])
         .send()
         .await?;
+    login_response.status().is_success()
+        .then(|| ())
+        .ok_or_else(|| format!("Failed to login to Nacos: {}", login_response.status()))?;
     // 获取响应内容
     let body = login_response.text().await?;
 
-    let token_json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let token_json: serde_json::Value = serde_json::from_str(&body)?;
     let access_token = token_json.get("accessToken").unwrap().as_str().unwrap();
 
     let config_url = format!(
@@ -79,8 +82,12 @@ async fn get_all_data_id(from_nacos: &Nacos) -> Result<Vec<String>, Box<dyn std:
         .send()
         .await?;
 
-    let config_list_responst_body = config_list_response.text().await?;
-    let config_list_json: serde_json::Value = serde_json::from_str(&config_list_responst_body)?;
+    config_list_response.status().is_success()
+        .then(|| ())
+        .ok_or_else(|| format!("Failed to get config list from Nacos: {}", config_list_response.status()))?;
+
+    let config_list_response_body = config_list_response.text().await?;
+    let config_list_json: serde_json::Value = serde_json::from_str(&config_list_response_body)?;
 
     let result = config_list_json
         .get("pageItems")
