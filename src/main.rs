@@ -9,7 +9,8 @@ use serde_yaml::Value;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    let sync_config = read_config(args.config_path.as_str())?;
+    let config_path = args.config_path.unwrap_or_else(|| "sync-config.yaml".to_string());
+    let sync_config = read_config(config_path.as_str())?;
 
     let from = &sync_config.from;
     let from_config_service = build_config_service(from)?;
@@ -176,7 +177,7 @@ fn filter_config(
 )]
 struct Args {
     #[arg(short, long, help = "Path to the config file")]
-    config_path: String,
+    config_path: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
