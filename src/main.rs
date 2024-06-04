@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs::File, io::Read};
 
+use clap::Parser;
 use nacos_sdk::api::config::{ConfigService, ConfigServiceBuilder};
 use nacos_sdk::api::props::ClientProps;
 use serde::{Deserialize, Serialize};
@@ -7,7 +8,8 @@ use serde_yaml::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let sync_config = read_config("sync-config.yaml")?;
+    let args = Args::parse();
+    let sync_config = read_config(args.config_path.as_str())?;
 
     let from = &sync_config.from;
     let from_config_service = build_config_service(from)?;
@@ -34,22 +36,31 @@ fn build_config_service(nacos: &Nacos) -> Result<impl ConfigService, Box<dyn std
     Ok(config_service)
 }
 
-async fn do_sync(all_data_id: Vec<String>, sync_config: &Config, from_config_service: Box<dyn ConfigService>, to_config_service: Box<dyn ConfigService>) -> Result<(), Box<dyn std::error::Error>> {
+async fn do_sync(
+    all_data_id: Vec<String>,
+    sync_config: &Config,
+    from_config_service: Box<dyn ConfigService>,
+    to_config_service: Box<dyn ConfigService>)
+    -> Result<(), Box<dyn std::error::Error>> {
     let ignore_vec = sync_config.ignore.clone();
+    let default_group = "DEFAULT_GROUP".to_string();
+    let default_config_type = "yaml".to_string();
     for data_id in all_data_id {
-        let config_resp = from_config_service.get_config(data_id.clone(), "DEFAULT_GROUP".to_string()).await?;
+        let config_resp = from_config_service.get_config(data_id.clone(), default_group.clone()).await?;
         let contents = config_resp.content();
         let yaml_config: HashMap<String, Value> = serde_yaml::from_str(contents)?;
 
         let mut result = yaml_config;
-        if ignore_vec.iter().any(|ignore| ignore.data_id == data_id) {
+        if ignore_vec.iter().any(|ignore| &ignore.data_id == &data_id) {
             let map = ignore_vec.first().unwrap();
             let ignore: HashMap<String, Value> = map.fields.clone();
             println!("Ignore: {:#?} for Data ID: {:#?}", &ignore, &data_id);
             result = filter_config(&result, &ignore);
         }
-        //println!("dataId: {}, Result: {:#?}", &data_id, &result);
-        let sync_response = to_config_service.publish_config(data_id.clone(), "DEFAULT_GROUP".to_string(), serde_yaml::to_string(&result).unwrap(), Some("yaml".to_string())).await;
+
+        let new_config_content = serde_yaml::to_string(&result).unwrap();
+
+        let sync_response = to_config_service.publish_config(data_id.clone(), default_group.clone(), new_config_content, Some(default_config_type.clone())).await;
         match sync_response {
             Ok(res) => { println!("Sync Success: {}, res: {:#?}", &data_id, res) }
             Err(err) => { println!("Sync Failed: {}, Error: {:#?}", &data_id, &err) }
@@ -159,6 +170,14 @@ fn filter_config(
         .collect()
 }
 
+#[derive(Parser, Debug)]
+#[command(
+    name = "sync-config", about = "Sync config from one Nacos to another", version = "0.1.0", long_about = None
+)]
+struct Args {
+    #[arg(short, long, help = "Path to the config file")]
+    config_path: String,
+}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Config {
