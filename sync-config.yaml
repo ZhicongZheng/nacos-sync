@@ -11,10 +11,5 @@ to:
   username: nacos
   password: nacos
 
-ignore:
-  - data_id: public-datasource.yaml
-    fields:
-      spring:
-        liquibase:
-          enabled:
+
 

@@ -43,7 +43,9 @@ async fn do_sync(
     from_config_service: Box<dyn ConfigService>,
     to_config_service: Box<dyn ConfigService>)
     -> Result<(), Box<dyn std::error::Error>> {
-    let ignore_vec = sync_config.ignore.clone();
+    let ignore_vec = if let Some(vec) = sync_config.ignore.clone() {
+        vec
+    } else { vec![] };
     let default_group = "DEFAULT_GROUP".to_string();
     let default_config_type = "yaml".to_string();
     for data_id in all_data_id {
@@ -184,7 +186,7 @@ struct Args {
 struct Config {
     from: Nacos,
     to: Nacos,
-    ignore: Vec<IgnoreItem>,
+    ignore: Option<Vec<IgnoreItem>>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
